@@ -200,7 +200,7 @@ def evaluate(data_source):
                 total_loss += len(data) * criterion(output_flat, targets).item()
             else:
                 criterion.loss_type = 'full'
-                output = model(data, hidden)
+                output, hidden = model(data, hidden)
                 single_loss = criterion(targets.view(-1, eval_batch_size), output)
                 loss = single_loss.mean() * len(data)
                 total_loss += loss.item()
@@ -218,6 +218,8 @@ def train():
     ntokens = len(corpus.dictionary)
     hidden = model.init_hidden(args.batch_size)
     optimizer = torch.optim.SGD(model.parameters(), lr=lr)
+    # NCE optimiser taking NCE output layer parameters
+    NCEoptimiser = torch.optim.SGD(criterion.parameters(), lr=lr)
     for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
         data, targets = get_batch(train_data, i)
         # Starting each batch, we detach the hidden state from how it was previously produced.
@@ -229,16 +231,22 @@ def train():
             loss = criterion(output.view(-1, ntokens), targets)
             loss.backward()
         if args.loss == 'nce':
-            output = model(data, hidden)
+            # Here bypasses NCE completely
+            criterion.loss_type = "full"
+            output, hidden = model(data, hidden)
             single_loss = criterion(targets.view(-1, args.batch_size), output)
             loss = single_loss.mean()
             loss.backward()
 
         # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
         torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
+        # Clip nce output layer gradient
+        torch.nn.utils.clip_grad_norm_(criterion.parameters(), args.clip)
         # for p in model.parameters():
         #    p.data.add_(-lr, p.grad.data)
         optimizer.step()
+        # Optimise nce parameters
+        NCEoptimiser.step()
 
         total_loss += loss.item()
 
