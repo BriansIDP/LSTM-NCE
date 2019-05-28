@@ -39,8 +39,8 @@ class IndexLinear(NCELoss):
         self.emb.weight.data.uniform_(-stdv, stdv)
         if self.bias is not None:
             # initialize the bias with unigram instead of uniform
-            self.bias.weight.data = torch.log(self.noise + 1e-10) + self.norm_term
-            self.bias.weight.data.unsqueeze_(1)
+            self.bias.weight.data = (torch.log(self.noise + 1e-10) + self.norm_term).unsqueeze(1)
+            # self.bias.weight.data.unsqueeze_(1)
 
     def get_score(self, target_idx, noise_idx, input):
         """
@@ -140,6 +140,7 @@ class IndexLinear(NCELoss):
 
 
     def ce_loss(self, target_idx, input):
+        # score = F.linear(input, self.emb.weight)
         score = F.linear(input, self.emb.weight, self.bias.weight.squeeze(1))  # (N, V)
         loss = self.ce(
             score.view(-1, score.size(-1)),
