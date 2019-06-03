@@ -53,7 +53,7 @@ parser.add_argument('--loss', type=str, default='ce',
                     help='loss functions to be used')
 parser.add_argument('--noise_ratio', type=int, default=50,
                     help='set the noise ratio of NCE sampling, the noise')
-parser.add_argument('--norm_term', type=int, default=9,
+parser.add_argument('--norm_term', type=int, default=0,
                     help='set the log normalization term of NCE sampling')
 args = parser.parse_args()
 
@@ -186,6 +186,7 @@ def get_batch(source, i):
 def evaluate(data_source):
     # Turn on evaluation mode which disables dropout.
     model.eval()
+    criterion.eval()
     total_loss = 0.
     ntokens = len(corpus.dictionary)
     hidden = model.init_hidden(eval_batch_size)
@@ -213,6 +214,7 @@ def evaluate(data_source):
 def train():
     # Turn on training mode which enables dropout.
     model.train()
+    criterion.train()
     total_loss = 0.
     start_time = time.time()
     ntokens = len(corpus.dictionary)
@@ -226,13 +228,14 @@ def train():
         # If we didn't, the model would try backpropagating all the way to start of the dataset.
         hidden = repackage_hidden(hidden)
         model.zero_grad()
+        criterion.zero_grad()
         if args.loss == 'ce':
             output, hidden = model(data, hidden)
             loss = criterion(output.view(-1, ntokens), targets)
             loss.backward()
         if args.loss == 'nce':
             # Here bypasses NCE completely
-            criterion.loss_type = "full"
+            # criterion.loss_type = "full"
             output, hidden = model(data, hidden)
             single_loss = criterion(targets.view(-1, args.batch_size), output)
             loss = single_loss.mean()
